@@ -782,4 +782,53 @@ if (Ember.FEATURES.isEnabled("query-params-new")) {
 
     Ember.run(router, 'transitionTo', 'other');
   });
+
+test("full transition is triggered in response to QP change when transitioning from a child route", function() {
+    Router.map(function() {
+        this.resource("list", function() {
+            this.route("item");
+        });
+    });
+
+    App.ListController = Ember.Controller.extend({
+        queryParams: ['sortBy'],
+        sortBy: 'name'
+    });
+
+    var listModelCount = 0;
+    App.ListRoute = Ember.Route.extend({
+        queryParams: {
+            sortBy: { refreshModel: true }
+        },
+
+        model: function(params) {
+            listModelCount++;
+
+            if (listModelCount === 1) {
+                deepEqual(params, { sortBy: 'name' });
+            } else if (listModelCount === 2) {
+                deepEqual(params, { sortBy: 'date' });
+            }
+        }
+    });
+
+    bootApplication();
+    equal(listModelCount, 0);
+
+    var controller = container.lookup('controller:list');
+
+    Ember.run(router, 'transitionTo', 'list');
+    equal(listModelCount, 1);
+    deepEqual(controller.get('sortBy'), 'name');
+
+    Ember.run(router, 'transitionTo', 'list.item');
+    deepEqual(controller.get('sortBy'), 'name');
+    equal(listModelCount, 1);
+
+    Ember.run(router, 'transitionTo', 'list', { queryParams: { sortBy: "date" } });
+
+    deepEqual(controller.get('sortBy'), 'date');
+    equal(listModelCount, 2);
+  });
+
 }
